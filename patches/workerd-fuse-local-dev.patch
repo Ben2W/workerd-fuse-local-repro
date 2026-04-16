@@ -1,8 +1,8 @@
 diff --git a/src/workerd/server/container-client.c++ b/src/workerd/server/container-client.c++
-index b577ea1..5bc58cb 100644
+index b577ea1..70b9602 100644
 --- a/src/workerd/server/container-client.c++
 +++ b/src/workerd/server/container-client.c++
-@@ -1698,6 +1698,35 @@ kj::Promise<void> ContainerClient::createContainer(kj::StringPtr effectiveImage,
+@@ -1698,6 +1698,36 @@ kj::Promise<void> ContainerClient::createContainer(kj::StringPtr effectiveImage,
      }
    }
  
@@ -15,10 +15,11 @@ index b577ea1..5bc58cb 100644
 +  // the subsequent `mount("fuse", ...)` syscall fail with ENOENT / EPERM.
 +  // Workers that use FUSE (e.g. the containers FUSE binding) therefore
 +  // work in prod but break in local dev. Mirror what prod effectively
-+  // provides by running the user's container privileged with /dev/fuse
-+  // exposed. This only affects local development via workerd's Docker
-+  // client; production is unaffected.
-+  hostConfig.setPrivileged(true);
++  // provides with the narrowest capabilities needed: CAP_SYS_ADMIN so the
++  // mount() syscall can run, a /dev/fuse device binding so the kernel has
++  // something to open, and apparmor unconfined so the default Docker
++  // apparmor profile doesn't block the mount. This only affects local
++  // development via workerd's Docker client; production is unaffected.
 +  {
 +    auto capAdd = hostConfig.initCapAdd(1);
 +    capAdd.set(0, "SYS_ADMIN");

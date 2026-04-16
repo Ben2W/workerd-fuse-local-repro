@@ -12,7 +12,7 @@ All three states are asserted end-to-end by a single `vitest` run. The "FUSE wor
 
 ## Proposed upstream fix
 
-I've opened a PR against `cloudflare/workerd` with the 32-line diff that fixes this at the source: **<WORKERD_PR_URL>**.
+I've opened a PR against `cloudflare/workerd` with the 32-line diff that fixes this at the source: **https://github.com/cloudflare/workerd/pull/6596**.
 
 The patch is also committed here at [`patches/workerd-fuse-local-dev.patch`](patches/workerd-fuse-local-dev.patch).
 

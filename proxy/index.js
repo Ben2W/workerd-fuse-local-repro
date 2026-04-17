@@ -3,9 +3,11 @@
 /**
  * Docker Socket Proxy
  *
- * This proxy intercepts Docker API calls and injects privileged mode
- * into container create requests. This is needed for FUSE support in
- * local development with Cloudflare Containers.
+ * Intercepts Docker API calls and injects the minimum HostConfig fields
+ * required for FUSE in local development with Cloudflare Containers:
+ * CapAdd=[SYS_ADMIN], Devices=[/dev/fuse], SecurityOpt=[apparmor:unconfined].
+ * No Privileged=true — mirrors the upstream fix at
+ *   https://github.com/cloudflare/workerd/pull/6596
  *
  * Usage:
  *   WRANGLER_DOCKER_HOST=unix:///tmp/docker-privileged.sock wrangler dev
@@ -21,32 +23,32 @@ const PROXY_SOCKET =
   process.env.DOCKER_PROXY_SOCKET || "/tmp/docker-privileged.sock";
 
 /**
- * Modify the container create request to add privileged mode and FUSE support
+ * Modify the container create request to add FUSE support.
+ *
+ * This mirrors the upstream fix proposed at
+ *   https://github.com/cloudflare/workerd/pull/6596
+ * — no Privileged, just the minimum HostConfig fields needed for FUSE:
+ *   - CapAdd: ["SYS_ADMIN"]         (for the mount() syscall)
+ *   - Devices: [/dev/fuse]          (so the kernel has something to open)
+ *   - SecurityOpt: ["apparmor:unconfined"] (bypasses Docker's default
+ *                                          apparmor profile mount block)
  */
 function modifyCreateRequest(bodyStr) {
   try {
     const data = JSON.parse(bodyStr);
 
-    // Initialize HostConfig if it doesn't exist
     if (!data.HostConfig) {
       data.HostConfig = {};
     }
 
-    // Enable privileged mode for full FUSE support (needed for docker exec to work)
-    data.HostConfig.Privileged = true;
-
-    // Add SYS_ADMIN capability for FUSE (redundant with privileged but explicit)
-    if (!data.HostConfig.CapAdd) {
-      data.HostConfig.CapAdd = [];
-    }
+    // CAP_SYS_ADMIN — required for the mount() syscall.
+    if (!data.HostConfig.CapAdd) data.HostConfig.CapAdd = [];
     if (!data.HostConfig.CapAdd.includes("SYS_ADMIN")) {
       data.HostConfig.CapAdd.push("SYS_ADMIN");
     }
 
-    // Add /dev/fuse device
-    if (!data.HostConfig.Devices) {
-      data.HostConfig.Devices = [];
-    }
+    // /dev/fuse — the device node the kernel opens to establish a FUSE mount.
+    if (!data.HostConfig.Devices) data.HostConfig.Devices = [];
     const hasFuse = data.HostConfig.Devices.some(
       (d) => d.PathOnHost === "/dev/fuse",
     );
@@ -58,15 +60,13 @@ function modifyCreateRequest(bodyStr) {
       });
     }
 
-    // Disable AppArmor for FUSE
-    if (!data.HostConfig.SecurityOpt) {
-      data.HostConfig.SecurityOpt = [];
-    }
+    // Docker's default apparmor profile blocks mount; opt out.
+    if (!data.HostConfig.SecurityOpt) data.HostConfig.SecurityOpt = [];
     if (!data.HostConfig.SecurityOpt.includes("apparmor:unconfined")) {
       data.HostConfig.SecurityOpt.push("apparmor:unconfined");
     }
 
-    console.log("[docker-proxy] Injected privileged mode and FUSE support");
+    console.log("[docker-proxy] Injected FUSE HostConfig (no Privileged)");
     return JSON.stringify(data);
   } catch (e) {
     console.error("[docker-proxy] Failed to parse/modify request:", e.message);
@@ -235,7 +235,7 @@ function startProxy() {
       "╔══════════════════════════════════════════════════════════════╗",
     );
     console.log(
-      "║           Docker Privileged Proxy Started                    ║",
+      "║              Docker FUSE Proxy Started                       ║",
     );
     console.log(
       "╠══════════════════════════════════════════════════════════════╣",

@@ -5,7 +5,7 @@ Workers that use [Cloudflare Containers](https://developers.cloudflare.com/conta
 This repo is a minimal, reproducible demonstration of:
 
 1. The bug: **stock `wrangler dev` / `workerd` does not expose `/dev/fuse` or grant `CAP_SYS_ADMIN`** to the local container, so any FUSE mount attempt fails.
-2. A runtime **workaround**: a Docker socket proxy that intercepts `POST /containers/create` and injects the four HostConfig fields the container needs. With the proxy in place, FUSE mounts work.
+2. A runtime **workaround**: a Docker socket proxy that intercepts `POST /containers/create` and injects the three HostConfig fields the container needs (`CapAdd=[SYS_ADMIN]`, `Devices=[/dev/fuse]`, `SecurityOpt=[apparmor:unconfined]` — no `Privileged`, matching the upstream fix). With the proxy in place, FUSE mounts work.
 
 ## Proposed upstream fix
 

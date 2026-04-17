@@ -1,25 +1,12 @@
 diff --git a/src/workerd/server/container-client.c++ b/src/workerd/server/container-client.c++
-index b577ea1..70b9602 100644
+index b577ea1..62ae51d 100644
 --- a/src/workerd/server/container-client.c++
 +++ b/src/workerd/server/container-client.c++
-@@ -1698,6 +1698,36 @@ kj::Promise<void> ContainerClient::createContainer(kj::StringPtr effectiveImage,
+@@ -1698,6 +1698,23 @@ kj::Promise<void> ContainerClient::createContainer(kj::StringPtr effectiveImage,
      }
    }
  
-+  // Local-dev FUSE parity with production.
-+  //
-+  // Cloudflare's production container runtime exposes /dev/fuse to workers
-+  // and grants the capabilities required to mount it. Locally we talk to a
-+  // stock Docker daemon, which by default does not bind /dev/fuse into the
-+  // container and does not grant CAP_SYS_ADMIN, so `open("/dev/fuse")` and
-+  // the subsequent `mount("fuse", ...)` syscall fail with ENOENT / EPERM.
-+  // Workers that use FUSE (e.g. the containers FUSE binding) therefore
-+  // work in prod but break in local dev. Mirror what prod effectively
-+  // provides with the narrowest capabilities needed: CAP_SYS_ADMIN so the
-+  // mount() syscall can run, a /dev/fuse device binding so the kernel has
-+  // something to open, and apparmor unconfined so the default Docker
-+  // apparmor profile doesn't block the mount. This only affects local
-+  // development via workerd's Docker client; production is unaffected.
++  // Docker doesn't grant FUSE access by default — enable the minimum permissions for it.
 +  {
 +    auto capAdd = hostConfig.initCapAdd(1);
 +    capAdd.set(0, "SYS_ADMIN");

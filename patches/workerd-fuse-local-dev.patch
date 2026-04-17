@@ -1,8 +1,8 @@
 diff --git a/src/workerd/server/container-client.c++ b/src/workerd/server/container-client.c++
-index b577ea1..62ae51d 100644
+index b577ea1..539327c 100644
 --- a/src/workerd/server/container-client.c++
 +++ b/src/workerd/server/container-client.c++
-@@ -1698,6 +1698,23 @@ kj::Promise<void> ContainerClient::createContainer(kj::StringPtr effectiveImage,
+@@ -1698,6 +1698,24 @@ kj::Promise<void> ContainerClient::createContainer(kj::StringPtr effectiveImage,
      }
    }
  
@@ -19,6 +19,7 @@ index b577ea1..62ae51d 100644
 +    fuseDev.setCgroupPermissions("rwm");
 +  }
 +  {
++    // Linux-only: no-op on hosts without AppArmor (e.g. macOS).
 +    auto securityOpt = hostConfig.initSecurityOpt(1);
 +    securityOpt.set(0, "apparmor:unconfined");
 +  }
